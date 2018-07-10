@@ -7,8 +7,8 @@ from create_npy import *
 from keras.models import Model
 from keras.layers import Input, concatenate, Conv2D, MaxPooling2D, Conv2DTranspose
 from keras.optimizers import Adam
-from keras.callbacks import ModelCheckpoint
 from keras import backend as K
+from keras import metrics, losses
 
 
 smooth = 1.
@@ -64,6 +64,7 @@ def get_unet():
 
     model = Model(inputs=[inputs], outputs=[conv10])
 
-    model.compile(optimizer=Adam(lr=1e-3), loss=dice_coef_loss, metrics=[dice_coef])
+    model.compile(optimizer=Adam(lr=1e-5), loss=dice_coef_loss, metrics=[dice_coef])
+    # model.compile(optimizer=Adam(lr=1e-3), loss=losses.binary_crossentropy, metrics=[dice_coef])
 
     return model

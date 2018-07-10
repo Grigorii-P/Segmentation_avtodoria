@@ -7,8 +7,8 @@ from skimage.io import imread
 data_path = '/home/grigorii/Desktop/Segmentation/images/'
 path_to_npy = '/home/grigorii/Desktop/Segmentation/data_npy/'
 
-img_rows = 128
-img_cols = 128
+img_rows = 96
+img_cols = 96
 
 
 def create_npy(data_type):
