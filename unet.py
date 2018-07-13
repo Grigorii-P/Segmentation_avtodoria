@@ -1,8 +1,5 @@
 from __future__ import print_function
 
-import os
-from skimage.io import imsave
-import numpy as np
 from create_npy import *
 from keras.models import Model
 from keras.layers import Input, concatenate, Conv2D, MaxPooling2D, Conv2DTranspose
@@ -11,8 +8,8 @@ from keras import backend as K
 from keras import metrics, losses
 
 
-smooth = 1.
 def dice_coef(y_true, y_pred):
+    smooth = 1.
     y_true_f = K.flatten(y_true)
     y_pred_f = K.flatten(y_pred)
     intersection = K.sum(y_true_f * y_pred_f)
