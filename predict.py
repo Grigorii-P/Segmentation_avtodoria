@@ -1,52 +1,76 @@
 # from __future__ import print_function
 from unet import *
 from skimage.io import imsave
-from train import printing, preprocess
+from train import preprocess
+from create_npy import img_cols, img_rows
 
 
-path_to_save_preds = '/home/grigorii/Desktop/Segmentation/images/'
+data_path = '/home/grigorii/Desktop/Segmentation/images/test_two_cars'
+path_to_save_preds = '/home/grigorii/Desktop/Segmentation/images/test_two_cars_preds'
 path_to_npy = '/home/grigorii/Desktop/Segmentation/data_npy/'
 path_weights = os.path.join('/home/grigorii/Desktop/Segmentation', 'weights.h5')
+test_name = 'test_two_cars'
+
+
+def create_npy_preds():
+    path = os.path.join(data_path)
+    images = os.listdir(path)
+    total = len(images)
+
+    imgs = np.ndarray((total, img_rows, img_cols), dtype=np.float32)
+
+    i = 0
+    for image_name in images:
+        img = imread(os.path.join(path, image_name), as_gray=True)
+        img = cv2.resize(img, (img_cols, img_rows))
+        img = np.array([img])
+        imgs[i] = img
+
+        if i % 10 == 0:
+            print('Done: {0}/{1} images'.format(i, total))
+        i += 1
+    print('Loading done.')
+
+    np.save(os.path.join(path_to_npy, test_name+'.npy'), imgs)
+    print('Saving to .npy files done.')
+
+
+def load_data():
+    imgs_train = np.load(os.path.join(path_to_npy, test_name+'.npy'))
+    return imgs_train
 
 
 def predict():
     model = get_unet()
 
-    printing('Loading and preprocessing test data...')
-    imgs_test, imgs_mask_test = load_data('test')
+    create_npy_preds()
+    imgs_test = load_data()
 
     imgs_test = imgs_test.astype('float32')
     mean = np.mean(imgs_test)
     std = np.std(imgs_test)
-    np.save(os.path.join(path_to_npy, 'mean_std_test.npy'), np.array([mean, std]))
 
     imgs_test -= mean
     imgs_test /= std
 
-    printing('Loading saved weights...')
     model.load_weights(path_weights)
 
     imgs_test = preprocess(imgs_test)
 
-    printing('Predicting masks on test data...')
     pred_mask_test = model.predict(imgs_test, verbose=1)
-    np.save(os.path.join(path_to_npy, 'pred_mask_test.npy'), pred_mask_test)
+    # np.save(os.path.join(path_to_npy, 'pred_mask_test.npy'), pred_mask_test)
 
-    printing('Saving predicted masks to files...')
-    pred_dir = 'preds'
-    dir_to_save = os.path.join(path_to_save_preds, pred_dir)
-    if not os.path.exists(dir_to_save):
-        os.mkdir(dir_to_save)
     for i, image in enumerate(pred_mask_test):
         image = (image[:, :, 0] * 255.).astype(np.uint8)
         image = cv2.resize(image, (300, 300))
-        imsave(os.path.join(dir_to_save, str(i) + '_pred.png'), image)
+        imsave(os.path.join(path_to_save_preds, str(i) + '_pred.png'), image)
 
-    imgs_test, _ = load_data('test')
+    imgs_test *= std
+    imgs_test += mean
     for i, image in enumerate(imgs_test):
-        image = (image[:, :] * 255.).astype(np.uint8)
+        image = (image[:, :, 0] * 255.).astype(np.uint8)
         image = cv2.resize(image, (300, 300))
-        imsave(os.path.join(dir_to_save, str(i) + '_test.png'), image)
+        imsave(os.path.join(path_to_save_preds, str(i) + '_origin.png'), image)
 
 
 if __name__ == '__main__':

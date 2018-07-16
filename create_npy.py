@@ -4,7 +4,7 @@ import numpy as np
 from skimage.io import imread
 
 
-data_path = '/home/grigorii/Desktop/Segmentation/images/'
+images_path = '/home/grigorii/Desktop/Segmentation/images/'
 path_to_npy = '/home/grigorii/Desktop/Segmentation/data_npy/'
 
 img_rows = 96
@@ -16,7 +16,7 @@ def create_npy(data_type):
     if os.path.exists(os.path.join(path_to_npy, data_type+'.npy')):
         return
 
-    path = os.path.join(data_path, data_type)
+    path = os.path.join(images_path, data_type)
     images = os.listdir(path)
     total = round(len(images) / 2)
 
