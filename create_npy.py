@@ -4,11 +4,19 @@ import numpy as np
 from skimage.io import imread
 
 
-images_path = '/home/grigorii/Desktop/Segmentation/images/'
-path_to_npy = '/home/grigorii/Desktop/Segmentation/data_npy/'
+# images_path = '/home/grigorii/Desktop/Segmentation/images/'
+# path_to_npy = '/home/grigorii/Desktop/Segmentation/data_npy/'
+images_path = '/ssd480/grisha/images'
+path_to_npy = '/ssd480/grisha/data_npy'
 
-img_rows = 96
-img_cols = 96
+img_rows = 256
+img_cols = 256
+
+
+def printing(s):
+    print('-' * 30)
+    print(s)
+    print('-' * 30)
 
 
 def create_npy(data_type):
@@ -24,9 +32,7 @@ def create_npy(data_type):
     imgs_mask = np.ndarray((total, img_rows, img_cols), dtype=np.float32)
 
     i = 0
-    print('-'*30)
-    print('Creating training images...')
-    print('-'*30)
+    printing('Creating training images...')
     for image_name in images:
         if 'mask' in image_name:
             continue

@@ -1,60 +1,32 @@
 # from __future__ import print_function
-from unet import *
+from unet import unet_original
+import numpy as np
+import cv2
+import os
 from skimage.io import imsave
 from train import preprocess
-from create_npy import img_cols, img_rows
+from create_npy import load_data
+from train import path_weights
 
 
-data_path = '/home/grigorii/Desktop/Segmentation/images/test_two_cars'
-path_to_save_preds = '/home/grigorii/Desktop/Segmentation/images/test_two_cars_preds'
-path_to_npy = '/home/grigorii/Desktop/Segmentation/data_npy/'
-path_weights = os.path.join('/home/grigorii/Desktop/Segmentation', 'weights.h5')
-test_name = 'test_two_cars'
-
-
-def create_npy_preds():
-    path = os.path.join(data_path)
-    images = os.listdir(path)
-    total = len(images)
-
-    imgs = np.ndarray((total, img_rows, img_cols), dtype=np.float32)
-
-    i = 0
-    for image_name in images:
-        img = imread(os.path.join(path, image_name), as_gray=True)
-        img = cv2.resize(img, (img_cols, img_rows))
-        img = np.array([img])
-        imgs[i] = img
-
-        if i % 10 == 0:
-            print('Done: {0}/{1} images'.format(i, total))
-        i += 1
-    print('Loading done.')
-
-    np.save(os.path.join(path_to_npy, test_name+'.npy'), imgs)
-    print('Saving to .npy files done.')
-
-
-def load_data():
-    imgs_train = np.load(os.path.join(path_to_npy, test_name+'.npy'))
-    return imgs_train
+# data_path = '/home/grigorii/Desktop/Segmentation/images/test_two_cars'
+# path_to_save_preds = '/home/grigorii/Desktop/Segmentation/images/test_two_cars_preds'
+# path_to_npy = '/home/grigorii/Desktop/Segmentation/data_npy/'
+# path_weights = os.path.join('/home/grigorii/Desktop/Segmentation', 'weights.h5')
+data_path = '/ssd480/grisha/images/test'
+path_to_save_preds = '/ssd480/grisha/images/preds'
 
 
 def predict():
-    model = get_unet()
+    model = unet_original()
+    model.load_weights(path_weights)
 
-    create_npy_preds()
-    imgs_test = load_data()
-
+    imgs_test = load_data('test')
     imgs_test = imgs_test.astype('float32')
     mean = np.mean(imgs_test)
     std = np.std(imgs_test)
-
     imgs_test -= mean
     imgs_test /= std
-
-    model.load_weights(path_weights)
-
     imgs_test = preprocess(imgs_test)
 
     pred_mask_test = model.predict(imgs_test, verbose=1)

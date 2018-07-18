@@ -1,6 +1,6 @@
 from __future__ import print_function
 
-from create_npy import *
+from create_npy import img_cols, img_rows
 from keras.models import Model
 from keras.layers import Input, concatenate, Conv2D, MaxPooling2D, Conv2DTranspose, BatchNormalization
 from keras.optimizers import Adam
@@ -20,7 +20,7 @@ def dice_coef_loss(y_true, y_pred):
     return -dice_coef(y_true, y_pred)
 
 
-def get_unet():
+def unet_original():
     inputs = Input((img_rows, img_cols, 1))
     conv1 = Conv2D(32, (3, 3), activation='relu', padding='same')(inputs)
     conv1 = Conv2D(32, (3, 3), activation='relu', padding='same')(conv1)
@@ -73,3 +73,7 @@ def get_unet():
     # model.compile(optimizer=Adam(lr=1e-3), loss=losses.binary_crossentropy, metrics=[dice_coef])
 
     return model
+
+
+def unet_small():
+    return None

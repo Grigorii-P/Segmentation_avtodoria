@@ -1,6 +1,8 @@
 # from __future__ import print_function
-from unet import *
-from skimage.io import imsave
+import os
+import numpy as np
+from unet import unet_original
+from create_npy import create_npy, load_data, printing, img_rows, img_cols
 from keras.callbacks import ModelCheckpoint
 import tensorflow as tf
 from keras.backend.tensorflow_backend import set_session
@@ -15,15 +17,10 @@ sess = tf.Session(config=config)
 set_session(sess)
 
 
-path_to_save_preds = '/home/grigorii/Desktop/Segmentation/images/'
-path_to_npy = '/home/grigorii/Desktop/Segmentation/data_npy/'
-path_weights = os.path.join('/home/grigorii/Desktop/Segmentation', 'weights.h5')
-
-
-def printing(s):
-    print('-' * 30)
-    print(s)
-    print('-' * 30)
+# path_to_npy = '/home/grigorii/Desktop/Segmentation/data_npy/'
+# path_weights = os.path.join('/home/grigorii/Desktop/Segmentation', 'weights.h5')
+path_to_npy = '/ssd480/grisha/data_npy/'
+path_weights = os.path.join('/ssd480/grisha', 'weights.h5')
 
 
 def preprocess(imgs):
@@ -50,15 +47,15 @@ def train():
     imgs_mask_train /= 255.
 
     printing('Creating and compiling model...')
-    model = get_unet()
-    plot_model(model, to_file='model.png', show_shapes=True, show_layer_names=True)
+    model = unet_original()
+    plot_model(model, to_file='model'+str(img_rows)+'x'+str(img_cols)+'.png', show_shapes=True, show_layer_names=True)
     model_checkpoint = ModelCheckpoint(path_weights, monitor='val_loss', save_best_only=True)
 
     imgs_train = preprocess(imgs_train)
     imgs_mask_train = preprocess(imgs_mask_train)
 
     printing('Fitting model...')
-    model.fit(imgs_train, imgs_mask_train, batch_size=32, epochs=15, verbose=1, shuffle=True,
+    model.fit(imgs_train, imgs_mask_train, batch_size=128, epochs=15, verbose=1, shuffle=True,
               validation_split=0.2,
               callbacks=[model_checkpoint])
     printing('Done')
