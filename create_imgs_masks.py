@@ -7,7 +7,7 @@ from random import shuffle
 
 # ### Read all the images in a dict together with plate coordinates
 
-dir_images = '/ssd480/data/metadata'
+dir_images = '/ssd480/data/metadata/'
 path_to_images = '/ssd480/data/nn_images/'
 path_to_save = '/ssd480/grisha/images/'
 all_images = {}
