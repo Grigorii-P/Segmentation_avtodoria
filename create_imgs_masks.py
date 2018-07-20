@@ -1,25 +1,29 @@
 import os
 import json
 import cv2
+import sys
 import numpy as np
 from random import shuffle
 
 
 # ### Read all the images in a dict together with plate coordinates
 
-dir_images = '/ssd480/data/metadata/'
+dir_jsons = '/ssd480/data/metadata/'
 path_to_images = '/ssd480/data/nn_images/'
 path_to_save = '/ssd480/grisha/images/'
 all_images = {}
 
+if len(sys.argv) > 1:
+    num_train = int(sys.argv[1])
+    num_test = int(sys.argv[2])
+else:
+    num_train = 1000
+    num_test = 100
 
-num_train = 1000
-num_test = 100
 shift = 5
 
-
 print('Loading json files')
-files = os.listdir(dir_images)
+files = os.listdir(dir_jsons)
 json_list = []
 for file in files:
     if file.endswith(".json"):
@@ -27,7 +31,7 @@ for file in files:
 
 data_all = []
 for json_file in json_list:
-    with open(dir_images+json_file) as f:
+    with open(dir_jsons + json_file) as f:
         data = json.load(f)
         data_all.append(data)
         for i, item in enumerate(data['results']):
@@ -81,3 +85,7 @@ images_test = images[:num_test]
 copy_images(images_train, 'train')
 copy_images(images_test, 'test')
 
+# with open('all_train_files_list', 'w') as f:
+#     images_train.sort()
+#     for item in images_train:
+#         f.write("%s\n" % item)
