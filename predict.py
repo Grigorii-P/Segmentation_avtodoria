@@ -3,7 +3,8 @@ import numpy as np
 import cv2
 import os
 from skimage.io import imread, imsave
-from train import preprocess, path_weights, model, load_data, path_to_npy
+from train import load_data, path_to_npy, path_weights
+from utils.unet import unet_original
 from utils.unet import img_rows, img_cols
 
 
@@ -35,33 +36,25 @@ def load_isolated_dataset():
 
 
 def predict():
+    model = unet_original()
     model.load_weights(path_weights)
 
     # imgs_test, _ = load_data('test')
     imgs_test = load_isolated_dataset()
-    print()
-    print(type(imgs_test))
-    print()
     imgs_test = imgs_test.astype('float32')
-    mean = np.mean(imgs_test)
-    std = np.std(imgs_test)
-    imgs_test -= mean
-    imgs_test /= std
-    imgs_test = preprocess(imgs_test)
+    imgs_test = imgs_test[..., np.newaxis]
 
     pred_mask_test = model.predict(imgs_test, verbose=1)
     # np.save(os.path.join(path_to_npy, 'pred_mask_test.npy'), pred_mask_test)
 
     for i, image in enumerate(pred_mask_test):
         image = (image[:, :, 0] * 255.).astype(np.uint8)
-        image = cv2.resize(image, (300, 300))
+        # image = cv2.resize(image, (300, 300))
         imsave(os.path.join(path_to_save_preds, str(i) + '_pred.png'), image)
 
-    imgs_test *= std
-    imgs_test += mean
     for i, image in enumerate(imgs_test):
         image = (image[:, :, 0] * 255.).astype(np.uint8)
-        image = cv2.resize(image, (300, 300))
+        # image = cv2.resize(image, (300, 300))
         imsave(os.path.join(path_to_save_preds, str(i) + '_origin.png'), image)
 
 
