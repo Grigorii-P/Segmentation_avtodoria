@@ -8,18 +8,23 @@ from skimage.io import imread
 from random import shuffle, uniform, choice
 from utils.unet import img_cols, img_rows
 
+# dir_jsons = '/home/grigorii/Desktop/primary_search/2017-10-03T00_00_01__2017-11-01T00_00_00'
+# path_all_images = '/home/grigorii/Desktop/primary_search/2017-10-03T00_00_01__2017-11-01T00_00_00/nn_images'
 
 path_to_npy = '/ssd480/grisha/data_npy/'
 dir_jsons = '/ssd480/data/metadata/'
 path_all_images = '/ssd480/data/nn_images'
 path_train_test_imgs = '/ssd480/grisha/images/'
 
-# dir_jsons = '/home/grigorii/Desktop/primary_search/2017-10-03T00_00_01__2017-11-01T00_00_00'
-# path_all_images = '/home/grigorii/Desktop/primary_search/2017-10-03T00_00_01__2017-11-01T00_00_00/nn_images'
-
 num_train = 40000
 num_valid = 200
 all_images = {}
+shapes = [[1000, 1000], [1100, 1100], [1200, 1200]]
+p_decrease_size = -1  # overlay the target image on a black screen of a bigger size
+p_inverse = 0.01  # either to make an image inversed
+
+# decrease window size in this case - not 512x512 !!
+p_prepodobniy_linux = 1.0  # crop plates with a little shift for both axes
 
 
 def printing(s):
@@ -28,7 +33,7 @@ def printing(s):
     print('-' * 30)
 
 
-def create_npy(data_type):
+def create_npy_from_folder(data_type):
     if os.path.exists(os.path.join(path_to_npy, data_type + '.npy')):
         return
 
@@ -66,6 +71,66 @@ def create_npy(data_type):
 
     np.save(os.path.join(path_to_npy, data_type + '.npy'), imgs)
     np.save(os.path.join(path_to_npy, data_type + '_mask.npy'), imgs_mask)
+    print('Saving to .npy files done.')
+
+
+def create_valid_npy_for_generator(images_valid):
+    # for comments take a look at 'generator(...) below'
+    shuffle(images_valid)
+
+    imgs = np.ndarray((num_valid, img_rows, img_cols), dtype=np.float32)
+    imgs_mask = np.ndarray((num_valid, img_rows, img_cols), dtype=np.float32)
+
+    printing('Creating validation .npy files...')
+    for i, item in enumerate(images_valid):
+        area = all_images[item]
+        img = imread(join(path_all_images, item), as_gray=True)
+        shape = [img.shape[0], img.shape[1]]
+
+        p = uniform(0, 1)
+        if p <= p_decrease_size:
+            shape = choice(shapes)
+            img_shape = [img.shape[0], img.shape[1]]
+            if not (shape[0] >= img_shape[0] and shape[1] >= img_shape[1]):
+                shape[0] = img_shape[0] + 500
+                shape[1] = img_shape[1] + 500
+            bg = np.zeros(shape=shape)
+            bg[:img_shape[0], :img_shape[1]] = img
+            img = bg
+        else:
+            p = uniform(0, 1)
+            if p <= p_prepodobniy_linux:
+                shift = 40
+                dx = area[2] - area[0]
+                dy = area[3] - area[1]
+                shape = [2 * shift + dy, 2 * shift + dx]
+                if not (area[1] - shift < 0 or area[3] + shift > img.shape[0] or
+                        area[0] - shift < 0 or area[2] + shift > img.shape[1]):
+                    img = img[area[1] - shift: area[3] + shift, area[0] - shift:area[2] + shift]
+                else:
+                    bg = np.zeros(shape=shape)
+                    bg[shift:shift + dy, shift:shift + dx] = img[area[1]:area[3], area[0]:area[2]]
+                    img = bg
+                area = [shift, shift, dx + shift, dy + shift]
+
+        p = uniform(0, 1)
+        if p <= p_inverse:
+            img = (1. - img)
+
+        img_mask = create_mask(shape, area)
+        img = cv2.resize(img, (img_cols, img_rows))
+        img_mask = cv2.resize(img_mask, (img_cols, img_rows), interpolation=cv2.INTER_LANCZOS4)
+        img_mask = np.array(img_mask, dtype=np.float32)
+        img_mask /= 255.
+
+        img = np.array([img])
+        img_mask = np.array([img_mask])
+        imgs[i] = img
+        imgs_mask[i] = img_mask
+
+    printing('Loading done.')
+    np.save(os.path.join(path_to_npy, 'valid.npy'), imgs)
+    np.save(os.path.join(path_to_npy, 'valid_mask.npy'), imgs_mask)
     print('Saving to .npy files done.')
 
 
@@ -131,26 +196,24 @@ def check_images_existence(images_train):
         if not exists(join(path_all_images, item)):
             images_train.remove(item)
             count += 1
-    printing(str(count) + ' images deleted from dataset')
+    printing(str(count) + ' image(-s) deleted from dataset')
 
 
-def import_images_to_train():
+def import_images_train_valid():
     global all_images
 
     load_jsons()
     images = list(all_images.keys())
     shuffle(images)
     images_train = images[:num_train]
+    shuffle(images)
+    images_valid = images[:num_valid]
     check_images_existence(images_train)
     images_dict = {x: all_images[x] for x in images_train}
-    return images_train, images_dict
+    return images_train, images_valid, images_dict
 
 
 def generator(batch_size, images_train, images_dict):
-    shapes = [(1700, 1700), (2000, 2000)]
-    p_decrease_size = 0.5
-    p_inverse = 0.2
-
     while True:
         shuffle(images_train)
         for i in range(0, len(images_train), batch_size):
@@ -161,22 +224,37 @@ def generator(batch_size, images_train, images_dict):
             for j, item in enumerate(batch_list):
                 area = images_dict[item]
                 img = imread(join(path_all_images, item), as_gray=True)
-                shape = (img.shape[0], img.shape[1])
+                shape = [img.shape[0], img.shape[1]]
 
-                try:
+                p = uniform(0, 1)
+                # decrese the size of a car relative to the screen size
+                if p <= p_decrease_size:
+                    shape = choice(shapes)
+                    img_shape = [img.shape[0], img.shape[1]]
+                    if not (shape[0] >= img_shape[0] and shape[1] >= img_shape[1]):
+                        shape[0] = img_shape[0] + 500
+                        shape[1] = img_shape[1] + 500
+                    bg = np.zeros(shape=shape)
+                    bg[:img_shape[0], :img_shape[1]] = img
+                    img = bg
+                else:
                     p = uniform(0, 1)
-                    if p <= p_decrease_size:
-                        shape = choice(shapes)
-                        bg = np.zeros(shape=shape)
-                        center = (round(shape[0] / 2), round(shape[1] / 2))
-                        x_offset = center[0] - area[0]
-                        y_offset = center[1] - area[1]
-                        # crashes at this point due to borders
-                        bg[y_offset:y_offset + img.shape[0], x_offset:x_offset + img.shape[1]] = img
-                        img = bg
-                        area = (area[0] + x_offset, area[1] + y_offset, area[2] + x_offset, area[3] + y_offset)
-                except:
-                    shape = (img.shape[0], img.shape[1])
+                    # if we dont decrease a relative size, we take cropped image
+                    # as if it was an output from VJ, then increase its size by 'shift'
+                    if p <= p_prepodobniy_linux:
+                        shift = 40
+                        dx = area[2] - area[0]
+                        dy = area[3] - area[1]
+                        shape = [2 * shift + dy, 2 * shift + dx]
+
+                        if not (area[1] - shift < 0 or area[3] + shift > img.shape[0] or
+                                area[0] - shift < 0 or area[2] + shift > img.shape[1]):
+                            img = img[area[1] - shift: area[3] + shift, area[0] - shift:area[2] + shift]
+                        else:
+                            bg = np.zeros(shape=shape)
+                            bg[shift:shift + dy, shift:shift + dx] = img[area[1]:area[3], area[0]:area[2]]
+                            img = bg
+                        area = [shift, shift, dx + shift, dy + shift]
 
                 p = uniform(0, 1)
                 if p <= p_inverse:

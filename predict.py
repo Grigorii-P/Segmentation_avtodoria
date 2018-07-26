@@ -3,7 +3,7 @@ import numpy as np
 import cv2
 import os
 from skimage.io import imread, imsave
-from train import load_data, path_to_npy, path_weights
+from train import load_data, path_weights
 from utils.unet import unet_original
 from utils.unet import img_rows, img_cols
 
@@ -12,7 +12,9 @@ from utils.unet import img_rows, img_cols
 # path_to_save_preds = '/home/grigorii/Desktop/Segmentation/images/test_two_cars_preds'
 # path_to_npy = '/home/grigorii/Desktop/Segmentation/data_npy/'
 # path_weights = os.path.join('/home/grigorii/Desktop/Segmentation', 'weights.h5')
-data_path = '/ssd480/grisha/images/images_hard_to_recognize'
+
+# data_path = '/ssd480/grisha/images/images_hard_to_recognize'
+data_path = '/ssd480/grisha/images/test_two_cars'
 path_to_save_preds = '/ssd480/grisha/images/preds'
 
 
