@@ -1,30 +1,25 @@
-# from __future__ import print_function
+import numpy as np
+from time import time
+import os
+os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+os.environ["CUDA_VISIBLE_DEVICES"] = ""
+# os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 from keras.models import Model
 from keras.layers import Input, concatenate, Conv2D, MaxPooling2D, Conv2DTranspose, BatchNormalization
 from keras.optimizers import Adam
-from keras import backend as K
+from data_generator import printing
+from keras.utils import plot_model
+from utils.unet import dice_coef, dice_coef_loss
 
 
-img_rows = 256
-img_cols = 256
+average_among = 100
+depth = 1
+verbose = 0
+# shapes = [[96, 96], [256, 256], [512, 512]]
+shapes = [[256, 256]]
 
 
-def dice_coef(y_true, y_pred):
-    smooth = 1.
-    y_true_f = K.flatten(y_true)
-    y_pred_f = K.flatten(y_pred)
-    intersection = K.sum(y_true_f * y_pred_f)
-    return (2. * intersection + smooth) / (K.sum(y_true_f) + K.sum(y_pred_f) + smooth)
-
-
-def dice_coef_loss(y_true, y_pred):
-    return -dice_coef(y_true, y_pred)
-
-
-# My own implementation (unlike u_net)
-
-
-def unet_original():
+def unet_original(img_rows, img_cols):
     inputs = Input((img_rows, img_cols, 1))
     conv1 = Conv2D(32, (3, 3), activation='relu', padding='same', name='CONV_1')(inputs)
     conv1 = Conv2D(32, (3, 3), activation='relu', padding='same')(conv1)
@@ -80,7 +75,7 @@ def unet_original():
     return model
 
 
-def unet_small():
+def unet_small(img_rows, img_cols):
     inputs = Input((img_rows, img_cols, 1))
 
     init_kernel_num = 32
@@ -127,3 +122,20 @@ def unet_small():
     # model.compile(optimizer=Adam(lr=1e-3), loss=losses.binary_crossentropy, metrics=[dice_coef])
 
     return model
+
+
+# unets = {'Small': unet_small, 'Original': unet_original}
+unets = {'Small': unet_small}
+for unet in unets.keys():
+    for shape in shapes:
+        imgs = np.random.rand(depth, shape[0], shape[1], 1)
+        model = unets[unet](shape[0], shape[1])
+        plot_model(model, to_file='model.png', show_shapes=True,
+                   show_layer_names=True)
+
+        # t0 = time()
+        # for j in range(average_among):
+        #     preds = model.predict(imgs, verbose=verbose)
+        #
+        # printing('%s (%d, %d) %.3f sec' % (unet, shape[0], shape[1], ((time() - t0)/average_among)))
+

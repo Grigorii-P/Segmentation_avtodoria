@@ -5,7 +5,7 @@ import json
 import cv2
 import numpy as np
 from skimage.io import imread
-from random import shuffle, uniform, choice
+from random import shuffle, uniform, choice, randint
 from utils.unet import img_cols, img_rows
 
 # dir_jsons = '/home/grigorii/Desktop/primary_search/2017-10-03T00_00_01__2017-11-01T00_00_00'
@@ -20,7 +20,7 @@ num_train = 40000
 num_valid = 200
 all_images = {}
 shapes = [[1000, 1000], [1100, 1100], [1200, 1200]]
-p_decrease_size = -1  # overlay the target image on a black screen of a bigger size
+p_decrease_size = -1.0  # overlay the target image on a black screen of a bigger size
 p_inverse = 0.01  # either to make an image inversed
 
 # decrease window size in this case - not 512x512 !!
@@ -74,6 +74,7 @@ def create_npy_from_folder(data_type):
     print('Saving to .npy files done.')
 
 
+#TODO more comments
 def create_valid_npy_for_generator(images_valid):
     # for comments take a look at 'generator(...) below'
     shuffle(images_valid)
@@ -85,18 +86,26 @@ def create_valid_npy_for_generator(images_valid):
     for i, item in enumerate(images_valid):
         area = all_images[item]
         img = imread(join(path_all_images, item), as_gray=True)
+        #TODO think about it
+        # img /= img.max()
         shape = [img.shape[0], img.shape[1]]
 
         p = uniform(0, 1)
         if p <= p_decrease_size:
             shape = choice(shapes)
             img_shape = [img.shape[0], img.shape[1]]
-            if not (shape[0] >= img_shape[0] and shape[1] >= img_shape[1]):
-                shape[0] = img_shape[0] + 500
-                shape[1] = img_shape[1] + 500
+            while not (shape[0] >= img_shape[0] and shape[1] >= img_shape[1]):
+                shape[0] = img_shape[0] + 200
+                shape[1] = img_shape[1] + 200
             bg = np.zeros(shape=shape)
-            bg[:img_shape[0], :img_shape[1]] = img
+            rand_shift_x = randint(0, bg.shape[1] - img.shape[1])
+            rand_shift_y = randint(0, bg.shape[0] - img.shape[0])
+            bg[rand_shift_y:rand_shift_y + img.shape[0], rand_shift_x:rand_shift_x + img.shape[1]] = img
             img = bg
+            area[0] += rand_shift_x
+            area[2] += rand_shift_x
+            area[1] += rand_shift_y
+            area[3] += rand_shift_y
         else:
             p = uniform(0, 1)
             if p <= p_prepodobniy_linux:
@@ -109,7 +118,11 @@ def create_valid_npy_for_generator(images_valid):
                     img = img[area[1] - shift: area[3] + shift, area[0] - shift:area[2] + shift]
                 else:
                     bg = np.zeros(shape=shape)
-                    bg[shift:shift + dy, shift:shift + dx] = img[area[1]:area[3], area[0]:area[2]]
+                    try:
+                        bg[shift:shift + dy, shift:shift + dx] = img[area[1]:area[3], area[0]:area[2]]
+                    except ValueError:
+                        sh = img[area[1]:area[3], area[0]:area[2]].shape
+                        bg[shift:shift + sh[0], shift:shift + sh[1]] = img[area[1]:area[3], area[0]:area[2]]
                     img = bg
                 area = [shift, shift, dx + shift, dy + shift]
 
@@ -209,6 +222,7 @@ def import_images_train_valid():
     shuffle(images)
     images_valid = images[:num_valid]
     check_images_existence(images_train)
+    check_images_existence(images_valid)
     images_dict = {x: all_images[x] for x in images_train}
     return images_train, images_valid, images_dict
 
@@ -224,6 +238,8 @@ def generator(batch_size, images_train, images_dict):
             for j, item in enumerate(batch_list):
                 area = images_dict[item]
                 img = imread(join(path_all_images, item), as_gray=True)
+                #TODO think about it
+                # img /= img.max()
                 shape = [img.shape[0], img.shape[1]]
 
                 p = uniform(0, 1)
@@ -231,12 +247,19 @@ def generator(batch_size, images_train, images_dict):
                 if p <= p_decrease_size:
                     shape = choice(shapes)
                     img_shape = [img.shape[0], img.shape[1]]
-                    if not (shape[0] >= img_shape[0] and shape[1] >= img_shape[1]):
-                        shape[0] = img_shape[0] + 500
-                        shape[1] = img_shape[1] + 500
+                    while not (shape[0] >= img_shape[0] and shape[1] >= img_shape[1]):
+                        shape[0] = img_shape[0] + 200
+                        shape[1] = img_shape[1] + 200
+                    #TODO add real image as background instead of black box
                     bg = np.zeros(shape=shape)
-                    bg[:img_shape[0], :img_shape[1]] = img
+                    rand_shift_x = randint(0, bg.shape[1] - img.shape[1])
+                    rand_shift_y = randint(0, bg.shape[0] - img.shape[0])
+                    bg[rand_shift_y:rand_shift_y + img.shape[0], rand_shift_x:rand_shift_x + img.shape[1]] = img
                     img = bg
+                    area[0] += rand_shift_x
+                    area[2] += rand_shift_x
+                    area[1] += rand_shift_y
+                    area[3] += rand_shift_y
                 else:
                     p = uniform(0, 1)
                     # if we dont decrease a relative size, we take cropped image
@@ -252,7 +275,11 @@ def generator(batch_size, images_train, images_dict):
                             img = img[area[1] - shift: area[3] + shift, area[0] - shift:area[2] + shift]
                         else:
                             bg = np.zeros(shape=shape)
-                            bg[shift:shift + dy, shift:shift + dx] = img[area[1]:area[3], area[0]:area[2]]
+                            try:
+                                bg[shift:shift + dy, shift:shift + dx] = img[area[1]:area[3], area[0]:area[2]]
+                            except ValueError:
+                                sh = img[area[1]:area[3], area[0]:area[2]].shape
+                                bg[shift:shift + sh[0], shift:shift + sh[1]] = img[area[1]:area[3], area[0]:area[2]]
                             img = bg
                         area = [shift, shift, dx + shift, dy + shift]
 

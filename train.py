@@ -41,8 +41,10 @@ def train():
     images_train, images_valid, images_dict = import_images_train_valid()
     create_valid_npy_for_generator(images_valid)
     validation_imgs, validation_mask = load_data('valid')
+    validation_imgs = validation_imgs[..., np.newaxis]
+    validation_mask = validation_mask[..., np.newaxis]
 
-    batch = 10
+    batch = 64
     epochs = 8
     printing('Fitting model...')
     t0 = time()
